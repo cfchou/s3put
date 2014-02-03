@@ -17,6 +17,7 @@ import akka.pattern.{pipe, ask}
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.concurrent.Await
+import scala.language.postfixOps
 
 /**
  * Created with IntelliJ IDEA.
@@ -69,59 +70,6 @@ class S3StreamPut(val bucket: String, val key: String, val secret: String)
 
   }
 
-
-/*
-  // S3 doesn't support "Transfer-Encoding: chunked". We need to turn on
-  // "chunkless-streaming" and specify "Content-Length".
-  def chunkActor(connection: ActorRef): ActorRef = {
-    system.actorOf(Props(new Actor with ActorLogging {
-      def receive: Receive = {
-        case S3ChunkedStart(dest, contentType, contentLength) =>
-          log.info(s"S3ChunkedStart from ${sender.path}")
-
-          val date = DateTime.now.toRfc1123DateTimeString
-          val ct = properContentType(dest, contentType)
-          val req = sign(dest, date, None, Some(ct.mediaType.value),
-            List("x-amz-acl:public-read")) map({ sig =>
-            val auth = s"AWS $key:$sig"
-            log.info("""auth="%s"""" format auth)
-            ChunkedRequestStart(HttpRequest(HttpMethods.PUT, "/" + dest,
-              List(Host(bucketHost),
-                RawHeader("Date", date),
-                `Content-Type`(ct),
-                RawHeader("x-amz-acl", "public-read"),
-                RawHeader("Authorization", auth),
-                `Content-Length`(contentLength)
-              )))
-          }) flatMap { req =>
-            connection ? req.withAck(S3ChunkedAck(sender)) pipeTo(sender)
-          }
-          Await.ready(req, 1 second)
-        case S3ChunkedData(data: Array[Byte]) =>
-          //connection ! MessageChunk(data).withAck(S3ChunkedAck(sender))
-          Await.ready({
-            (connection ? MessageChunk(data).withAck(S3ChunkedAck(sender))).
-              pipeTo(sender)
-          }, 1 second)
-        case S3ChunkedEnd =>
-          //connection ! ChunkedMessageEnd.withAck(S3ChunkedAck(sender))
-          Await.ready({
-            (connection ? ChunkedMessageEnd.withAck(S3ChunkedAck(sender))).
-              pipeTo(sender)
-          }, 1 second)
-        /*
-        case S3ChunkedAck(commander2) =>
-          // commander is the S3StreamPut actor
-          log.info(s"S3ChunkedAcked to ${commander.path}")
-          commander ! S3ChunkedAck(system.deadLetters)
-        */
-        case x => log.info("chunkActor: unknown msg" + x.toString)
-      }
-    }), "chunker")
-  }
-*/
-
-
   def waiting: Receive = {
     case S3Connect =>
       log.info("Connect")
@@ -131,7 +79,6 @@ class S3StreamPut(val bucket: String, val key: String, val secret: String)
       context.become(connecting(commander))
     case x => log.info("Waiting: unknown msg" + x.toString)
   }
-
 
   def connecting(commander: ActorRef): Receive = {
     case S3Connect =>
@@ -170,15 +117,16 @@ class S3StreamPut(val bucket: String, val key: String, val secret: String)
             RawHeader("Authorization", auth),
             `Content-Length`(contentLength)
           )))
-      }) map { req =>
-        connection ! req.withAck(S3ChunkedAck)
-      }
-      /*
-      }) flatMap { req =>
-        connection ? req.withAck(S3ChunkedAck) pipeTo(sender)
-      }
-      */
+        }) map { req =>
+          connection ! req.withAck(S3ChunkedAck)
+        }
+        /*
+        }) flatMap { req =>
+          //connection ? req.withAck(S3ChunkedAck) pipeTo(sender)
+          connection ? req.withAck(S3ChunkedAck) pipeTo(commander)
+        }
       Await.ready(start, 1 second)
+      */
     case S3ChunkedData(data: Array[Byte]) =>
       log.info(s"S3ChunkedData from ${sender.path} to ${connection.path}")
       //connection ! MessageChunk(data)
@@ -221,36 +169,4 @@ class S3StreamPut(val bucket: String, val key: String, val secret: String)
     case x => log.info("Connected: unknown msg " + x.toString)
   }
 
-  /*
-  def connected(connection: ActorRef): Receive = {
-    case S3ChunkedStart(dest, ct, cl) =>
-      log.info("S3ChunkedStart")
-      val chunker = chunkActor(connection)
-      // Bypassing to client the S3ChunkedAck that coming back
-      // (chunker ? S3ChunkedStart(dest, ct, cl)) pipeTo(sender)
-
-      (chunker ? S3ChunkedStart(dest, ct, cl)) transform({ x =>
-        log.info(s"going to pipe this: $x")
-        x
-      }, { e =>
-        log.info(s"got exception: $e")
-        e
-      }) pipeTo(sender)
-      context.become(transferring(chunker))
-    case x => log.info("Connected: unknown msg " + x.toString)
-  }
-
-  def transferring(chunker: ActorRef): Receive = {
-    case S3ChunkedData(data: Array[Byte]) =>
-      log.info("S3ChunkedData")
-      (chunker ? S3ChunkedData(data)) pipeTo(sender)
-    case S3ChunkedEnd =>
-      log.info("S3ChunkedEnd")
-      (chunker ? S3ChunkedEnd) pipeTo(sender) onComplete ({ _ =>
-        system.stop(chunker) // chunker can be GC-ed
-      })
-      context.become(waiting)
-    case x => log.info("Transferring: unknown msg " + x.toString)
-  }
-  */
 }

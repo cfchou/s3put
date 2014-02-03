@@ -78,6 +78,8 @@ class Pong extends Actor with ActorLogging {
       Future {
         // if client "asks", then the sender is a temp actor provided by akka.
         // therefore msg won't go to client.
+        // So the Future need to redeem by Await, thus the temp actor remains valid
+        // on this thread, like case "111".
         sender ! x
       }
     case x => log.info(s"Pong: $x")
