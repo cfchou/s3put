@@ -142,7 +142,7 @@ class S3StreamPut(val bucket: String, val key: String, val secret: String)
     case _ : Http.Connected =>
       log.info("Connected")
       commander ! S3Connected
-      context.become(connected(sender))
+      context.become(connected(commander, sender))
     case _ : Http.CommandFailed =>
       log.info("CommandFailed")
       commander ! S3CommandFailed
@@ -152,7 +152,7 @@ class S3StreamPut(val bucket: String, val key: String, val secret: String)
 
   // S3 doesn't support "Transfer-Encoding: chunked". We need to turn on
   // "chunkless-streaming" and specify "Content-Length".
-  def connected(connection: ActorRef): Receive = {
+  def connected(commander: ActorRef, connection: ActorRef): Receive = {
     case S3ChunkedStart(dest, contentType, contentLength) =>
       log.info(s"S3ChunkedStart from ${sender.path}")
 
@@ -170,14 +170,20 @@ class S3StreamPut(val bucket: String, val key: String, val secret: String)
             RawHeader("Authorization", auth),
             `Content-Length`(contentLength)
           )))
+      }) map { req =>
+        connection ! req.withAck(S3ChunkedAck)
+      }
+      /*
       }) flatMap { req =>
         connection ? req.withAck(S3ChunkedAck) pipeTo(sender)
       }
+      */
       Await.ready(start, 1 second)
     case S3ChunkedData(data: Array[Byte]) =>
       log.info(s"S3ChunkedData from ${sender.path} to ${connection.path}")
       //connection ! MessageChunk(data)
-      connection ! MessageChunk(data).withAck(S3ChunkedAckTo(sender))
+      //connection ! MessageChunk(data).withAck(S3ChunkedAckTo(sender))
+      connection ! MessageChunk(data).withAck(S3ChunkedAck)
 
       /*
       log.info(s"implicit timeout ${implicitly[Timeout]}")
@@ -194,13 +200,17 @@ class S3StreamPut(val bucket: String, val key: String, val secret: String)
         }) pipeTo(sender)
       }, 5 seconds)
       */
+    case S3ChunkedAck =>
+      log.info(s"S3ChunkedAck from ${sender.path} to ${commander.path}")
+      commander ! S3ChunkedAck
 
     case S3ChunkedAckTo(commander) =>
-      log.info(s"S3ChunkedAck from ${sender.path} to ${commander.path}")
+      log.info(s"S3ChunkedAckTo from ${sender.path} to ${commander.path}")
       commander ! S3ChunkedAck
     case S3ChunkedEnd =>
       log.info(s"S3ChunkedEnd from ${sender.path}")
-      connection ! ChunkedMessageEnd.withAck(S3ChunkedAckTo(sender))
+      //connection ! ChunkedMessageEnd.withAck(S3ChunkedAckTo(sender))
+      connection ! ChunkedMessageEnd.withAck(S3ChunkedAck)
 
       /*
       Await.ready({

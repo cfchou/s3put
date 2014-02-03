@@ -72,10 +72,6 @@ class S3StreamClient(val bucket: String, val key: String, val secret: String)
     case S3ChunkedAck =>
       log.info("S3ChunkedAck back from S3ChunkedStart")
       s3put ! S3ChunkedData(buf)
-      // TODO:
-      // For some unknown reason, no ack of S3ChunkData coming back.
-      // So fire away S3ChunkedEnd here.
-      s3put ! S3ChunkedEnd
       context.become(transferred)
     case x => log.info("transferring: unknown msg " + x.toString)
   }

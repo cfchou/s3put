@@ -5,7 +5,7 @@ import akka.pattern.ask
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.util.{Failure, Success}
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{ExecutionContext, Await, Future}
 
 /**
  * Created with IntelliJ IDEA.
@@ -15,11 +15,18 @@ import scala.concurrent.{Await, Future}
 
 object PingPong extends App {
 
-  val system = ActorSystem("AskTest")
+  val system = ActorSystem("PingPong")
 
   val pong = system.actorOf(Props(new Pong), "pong")
   val ping = system.actorOf(Props(new Ping(pong)), "ping")
 
+  import ExecutionContext.Implicits.global
+  system.scheduler.scheduleOnce(10.seconds)({
+    println("Shutdown actors")
+    system.stop(ping)
+    system.stop(pong)
+    system.shutdown()
+  })
 
 }
 
@@ -36,6 +43,14 @@ class Ping(pong: ActorRef) extends Actor with ActorLogging {
   (pong ? "111") onComplete({
     case Success(v) => log.info(s"111 $v")
     case Failure(e) => log.info(s"111 $e")
+  })
+
+  (pong ? "222") transform({ x =>
+    log.info(s"222 $x")
+    x
+  }, { e =>
+    log.info(s"222 $e")
+    e
   })
 
   def receive: Receive = {
@@ -58,5 +73,13 @@ class Pong extends Actor with ActorLogging {
       Await.result(Future {
         sender ! x
       }, 1.second)
+    case x@"222" =>
+      log.info(s"Pong: $x to ${sender.path}")
+      Future {
+        // if client "asks", then the sender is a temp actor provided by akka.
+        // therefore msg won't go to client.
+        sender ! x
+      }
+    case x => log.info(s"Pong: $x")
   }
 }
