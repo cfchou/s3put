@@ -1,0 +1,110 @@
+package com.example
+
+import scala.util.{Failure, Success, Try}
+import com.typesafe.config.ConfigFactory
+import akka.actor.{ActorLogging, Actor, Props, ActorSystem}
+import akka.util.Timeout
+import scala.concurrent.duration._
+import com.example.S3Put._
+import akka.pattern.{ask, pipe}
+import akka.actor.Props._
+import scala.concurrent.ExecutionContext
+import com.example.S3StreamPut._
+import scala.io.{Codec, Source}
+
+/**
+ * Created with IntelliJ IDEA.
+ * User: cfchou
+ * Date: 01/02/2014
+ */
+object S3StreamClient extends App {
+  val appConf = ConfigFactory.load
+  val bucket = appConf getString "s3.bucket"
+  val key = appConf getString "aws.key"
+  val secret = appConf getString "aws.secret"
+
+  val system = ActorSystem("S3StreamClient")
+  val s3client = system.actorOf(Props(
+    new S3StreamClient(bucket, key, secret)), "s3StreamClient")
+
+  import ExecutionContext.Implicits.global
+  system.scheduler.scheduleOnce(20.seconds)({
+    println("Shutdown actors")
+    system.stop(s3client)
+    system.shutdown()
+  })
+}
+
+class S3StreamClient(val bucket: String, val key: String, val secret: String)
+  extends Actor with ActorLogging {
+
+  val appConf = ConfigFactory.load("application")
+  val file = appConf getString "uploadTest.object"
+  val objectId = appConf getString "uploadTest.objectId"
+
+  val s3put = context.system.actorOf(Props(S3StreamPut(bucket, key, secret)),
+    "s3StreamPut")
+
+  val buf = {
+    val src = Source.fromFile(file)(Codec.ISO8859)
+    val buf = src.map(_.toByte).toArray
+    src.close
+    buf
+  }
+
+  implicit val ec = ActorSystem().dispatcher
+  implicit val timeout = Timeout(10 seconds)
+
+  s3put ! S3Connect
+
+  def receive: Receive = {
+    case S3Connected =>
+      log.info("S3Connected")
+      //s3put ! S3FileUpload(file, objectId, None)
+      s3put ! S3ChunkedStart(objectId, None, buf.length)
+      context.become(transferring)
+    case S3CommandFailed =>
+      doNothingAndWaitToDie("S3CommandFailed")
+    case x => log.info("receive: unknown msg " + x.toString)
+  }
+
+  def transferring: Receive = {
+    case S3ChunkedAck =>
+      log.info("S3ChunkedAck back from S3ChunkedStart")
+      s3put ! S3ChunkedData(buf)
+      // TODO:
+      // For some unknown reason, no ack of S3ChunkData coming back.
+      // So fire away S3ChunkedEnd here.
+      s3put ! S3ChunkedEnd
+      context.become(transferred)
+    case x => log.info("transferring: unknown msg " + x.toString)
+  }
+
+  def transferred: Receive = {
+    case S3ChunkedAck =>
+      log.info("S3ChunkedAck back from S3ChunkedData")
+      s3put ! S3ChunkedEnd
+      /*
+      (s3put ? S3ChunkedEnd) onComplete ({ _ match {
+          case Success(S3ChunkedAck) =>
+            log.info("S3ChunkedAck back from S3ChunkedEnd")
+          case Failure(_) => log.info("S3ChunkedEnd doesn't get acked")
+        }
+      })
+      */
+      // TODO: killself
+    case x => log.info("transferred: unknown msg " + x.toString)
+  }
+
+
+  def doNothingAndWaitToDie(msg: String) {
+    log.info(msg)
+    // doNothing while waiting for asynchronous stop
+    context.become(doNothing)
+    context.system.stop(self)
+  }
+
+  // doNothing while waiting for asynchronous stop
+  def doNothing: Receive = { case x => log.info("doNothing: msg" + x.toString) }
+
+}
