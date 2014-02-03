@@ -26,7 +26,8 @@ object S3Put {
   case object S3Connect extends S3Command
   // @dest is the path of the object on S3, without the starting '/'. E.g.
   // "/bucketname/dir/to/object", @dest = "dir/to/object"
-  case class S3FileUpload(file: String, dest: String, contentType: Option[String])
+  case class S3FileUpload(file: String, dest: String,
+                          contentType: Option[String]) extends S3Command
 
 
   sealed trait S3CommandResult
@@ -97,7 +98,7 @@ class S3Put(val bucket: String, val key: String, val secret: String)
     case _ : Http.Connected =>
       log.info("Connected")
       commander ! S3Connected
-      context.become(connected(commander, sender))
+      context.become(connected(sender))
     case _ : Http.CommandFailed =>
       log.info("CommandFailed")
       commander ! S3CommandFailed
@@ -105,7 +106,7 @@ class S3Put(val bucket: String, val key: String, val secret: String)
     case x => log.info("Connecting: unknown msg " + x.toString)
   }
 
-  def connected(commander: ActorRef, connection: ActorRef): Receive = {
+  def connected(connection: ActorRef): Receive = {
     case S3FileUpload(file, dest, ct) =>
       log.info("S3FileUpload")
       val src = Source.fromFile(file)(Codec.ISO8859)

@@ -8,7 +8,7 @@ import com.example.S3Put._
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.util.{Try, Failure, Success}
-import scala.concurrent.{Future, Await}
+import scala.concurrent.{ExecutionContext, Future, Await}
 
 /**
  * Created with IntelliJ IDEA.
@@ -16,16 +16,17 @@ import scala.concurrent.{Future, Await}
  * Date: 27/01/2014
  */
 object S3Client extends App {
-  val appConf = ConfigFactory.load("application")
+  val appConf = ConfigFactory.load // should find application.conf
   val bucket = appConf getString "s3.bucket"
   val key = appConf getString "aws.key"
   val secret = appConf getString "aws.secret"
   val file = appConf getString "uploadTest.object"
   val objectId = appConf getString "uploadTest.objectId"
 
-  val s3put = ActorSystem().actorOf(Props(S3Put(bucket, key, secret)), "s3put")
+  val system = ActorSystem("S3Client")
+  val s3put = system.actorOf(Props(S3Put(bucket, key, secret)), "s3Put")
 
-  implicit val ec = ActorSystem().dispatcher
+  import ExecutionContext.Implicits.global
   implicit val timeout = Timeout(10 seconds)
   val f = s3put ? S3Connect
   f onComplete({
@@ -41,19 +42,11 @@ object S3Client extends App {
         println("connect timeout")
   })
 
-  /*
-  f andThen({
-    case _ =>
+  system.scheduler.scheduleOnce(10.seconds)({
+    println("Shutdown actors")
+    system.stop(s3put)
+    system.shutdown()
   })
-  */
-
-
-
-  Thread.sleep(10000)
-  println("slept 10000 ms")
-  ActorSystem().stop(s3put)
-
-  ActorSystem().shutdown()
 }
 
 

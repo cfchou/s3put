@@ -1,7 +1,5 @@
 package com
 
-import com.typesafe.config.ConfigFactory
-import scala.util.Try
 
 /**
  * Created with IntelliJ IDEA.
@@ -10,6 +8,5 @@ import scala.util.Try
  */
 package object example {
 
-  val appConf = Try({ConfigFactory.load("application")})
 
 }
