@@ -7,6 +7,7 @@ import akka.pattern.ask
 import com.example.S3Put._
 import akka.util.Timeout
 import scala.concurrent.duration._
+import scala.language.postfixOps
 import scala.util.{Try, Failure, Success}
 import scala.concurrent.{ExecutionContext, Future, Await}
 

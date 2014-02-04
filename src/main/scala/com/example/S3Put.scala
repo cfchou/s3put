@@ -22,7 +22,7 @@ object S3Put {
   def apply(bucket: String, key: String, secret: String) =
     new S3Put(bucket, key,  secret)
 
-  sealed trait S3Command
+  trait S3Command
   case object S3Connect extends S3Command
   // @dest is the path of the object on S3, without the starting '/'. E.g.
   // "/bucketname/dir/to/object", @dest = "dir/to/object"
@@ -30,7 +30,7 @@ object S3Put {
                           contentType: Option[String]) extends S3Command
 
 
-  sealed trait S3CommandResult
+  trait S3CommandResult
   case object S3Connected extends S3CommandResult
   case object S3FileUploadAck extends S3CommandResult
   case object S3CommandFailed extends S3CommandResult
