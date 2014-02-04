@@ -33,7 +33,6 @@ object S3StreamPut {
   case class S3ChunkedData(data: Array[Byte])
   case object S3ChunkedEnd
   case object S3ChunkedAck
-  case class S3ChunkedAckTo(commander: ActorRef)
 }
 
 class S3StreamPut(val bucket: String, val key: String, val secret: String)
@@ -105,7 +104,7 @@ class S3StreamPut(val bucket: String, val key: String, val secret: String)
 
       val date = DateTime.now.toRfc1123DateTimeString
       val ct = properContentType(dest, contentType)
-      val start = sign(dest, date, None, Some(ct.mediaType.value),
+      sign(dest, date, None, Some(ct.mediaType.value),
         List("x-amz-acl:public-read")) map({ sig =>
         val auth = s"AWS $key:$sig"
         log.info("""auth="%s"""" format auth)
@@ -118,53 +117,29 @@ class S3StreamPut(val bucket: String, val key: String, val secret: String)
             `Content-Length`(contentLength)
           )))
         }) map { req =>
+          /* Ask pattern doesn't work here because:
+           * 1. A temporary actor is generated and stands in the middle of
+           * asker and askee.
+           * 2. spray-can remembers the sender when deal with
+           * ChunkedRequestStart and subsequently ack and response to that
+           * remembered sender.
+           * 3. Therefore, spray-can acts as a askee and remembers the temp
+           * actor and acks and responses everything to it(by then it's become
+           * deadLetter).
+           */
           connection ! req.withAck(S3ChunkedAck)
         }
-        /*
-        }) flatMap { req =>
-          //connection ? req.withAck(S3ChunkedAck) pipeTo(sender)
-          connection ? req.withAck(S3ChunkedAck) pipeTo(commander)
-        }
-      Await.ready(start, 1 second)
-      */
     case S3ChunkedData(data: Array[Byte]) =>
       log.info(s"S3ChunkedData from ${sender.path} to ${connection.path}")
-      //connection ! MessageChunk(data)
-      //connection ! MessageChunk(data).withAck(S3ChunkedAckTo(sender))
       connection ! MessageChunk(data).withAck(S3ChunkedAck)
 
-      /*
-      log.info(s"implicit timeout ${implicitly[Timeout]}")
-
-      Await.ready({
-        connection ? MessageChunk(data).withAck(S3ChunkedAck) transform({
-          case x =>
-            log.info(s"MessageChunk Ack $x")
-            x
-        }, {
-          case e =>
-            log.info(s"MessageChunk Ex $e")
-            e
-        }) pipeTo(sender)
-      }, 5 seconds)
-      */
     case S3ChunkedAck =>
       log.info(s"S3ChunkedAck from ${sender.path} to ${commander.path}")
       commander ! S3ChunkedAck
 
-    case S3ChunkedAckTo(commander) =>
-      log.info(s"S3ChunkedAckTo from ${sender.path} to ${commander.path}")
-      commander ! S3ChunkedAck
     case S3ChunkedEnd =>
       log.info(s"S3ChunkedEnd from ${sender.path}")
-      //connection ! ChunkedMessageEnd.withAck(S3ChunkedAckTo(sender))
       connection ! ChunkedMessageEnd.withAck(S3ChunkedAck)
-
-      /*
-      Await.ready({
-        connection ? ChunkedMessageEnd.withAck(S3ChunkedAck) pipeTo(sender)
-      }, 1 second)
-      */
 
     case x => log.info("Connected: unknown msg " + x.toString)
   }

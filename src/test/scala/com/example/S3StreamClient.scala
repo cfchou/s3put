@@ -7,7 +7,6 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import com.example.S3Put._
 import akka.pattern.{ask, pipe}
-import akka.actor.Props._
 import scala.concurrent.ExecutionContext
 import com.example.S3StreamPut._
 import scala.io.{Codec, Source}
@@ -80,14 +79,6 @@ class S3StreamClient(val bucket: String, val key: String, val secret: String)
     case S3ChunkedAck =>
       log.info("S3ChunkedAck back from S3ChunkedData")
       s3put ! S3ChunkedEnd
-      /*
-      (s3put ? S3ChunkedEnd) onComplete ({ _ match {
-          case Success(S3ChunkedAck) =>
-            log.info("S3ChunkedAck back from S3ChunkedEnd")
-          case Failure(_) => log.info("S3ChunkedEnd doesn't get acked")
-        }
-      })
-      */
       // TODO: killself
     case x => log.info("transferred: unknown msg " + x.toString)
   }
