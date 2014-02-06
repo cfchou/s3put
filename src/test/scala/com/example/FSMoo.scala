@@ -6,6 +6,7 @@ import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Failure, Success}
 import scala.concurrent.{ExecutionContext, Await, Future}
+
 /**
  * Created with IntelliJ IDEA.
  * User: cfchou
@@ -35,6 +36,7 @@ object Person {
   case object Upset extends Emo
   case object Neutral extends Emo
   case object NeverFeelThisWay extends Emo
+  case object UnsureThenStay extends Emo
 
   type Content = List[String]
 
@@ -43,6 +45,9 @@ object Person {
   case class Info(data: String) extends News
   case class GoodNews(data: String) extends News
   case class BadNews(data: String) extends News
+  case object `Smoke-A-Joint` extends News
+  // query one's Emo
+  case object AskFeeling extends News
 }
 
 class Person(mood: ActorRef) extends Actor with ActorLogging {
@@ -54,11 +59,15 @@ class Person(mood: ActorRef) extends Actor with ActorLogging {
 
   mood ! Nothing
   mood ! Info("today is wednesday")
-  mood ! Nothing
   mood ! GoodNews("sunny day")
-  mood ! Nothing
-  mood ! "@#$%^..."
-  system.scheduler.scheduleOnce(3 second) {
+  //mood ! Nothing
+  //mood ! "@#$%^..."
+  /*
+  system.scheduler.scheduleOnce(5 second) {
+    mood ! GoodNews("good food")
+  }
+  */
+  system.scheduler.schedule(1 second, 1 second) {
     mood ! GoodNews("good food")
   }
 
@@ -72,7 +81,24 @@ class Mood extends Actor with FSM[Person.Emo, Person.Content]
   import Person._
 
   startWith(Neutral, List.empty)
-  when(Neutral) {
+
+  /*
+   * If goto(UnsureThenStay), log.error appears because no when(UnsureThenStay)
+   * is declared. Eventually stay().
+   *
+   * If goto(NeverFeelThisWay), no log.error because when(NeverFeelThisWay) is
+   * defined. But actor will be stuck in NeverFeelThisWay unless whenUnhandled
+   * could help.
+   */
+  when(NeverFeelThisWay)(FSM.NullFunction)
+
+
+  when(Neutral) (ansCurrentState orElse {
+    case Event(x@AskFeeling, ct) =>
+      // this is designed for answering current state
+      log.info(s"${sender.path} sends $x, $ct")
+      sender ! stateName
+      stay
     case Event(x@Nothing, ct) =>
       log.info(s"${sender.path} sends $x, $ct")
       stay
@@ -85,32 +111,68 @@ class Mood extends Actor with FSM[Person.Emo, Person.Content]
     case Event(x@BadNews(i), ct) =>
       log.info(s"${sender.path} sends $x, $ct")
       goto(Upset)
-    case Event(x@_, ct) =>
+    case Event(x@`Smoke-A-Joint`, ct) =>
+      goto(NeverFeelThisWay)
+    case Event(x@_, ct) => // capture all unknown msgs
       log.info(s"${sender.path} sends $x, $ct")
-      // will "stay", since no TransformHandler for NeverFeelThisWay
-      goto(NeverFeelThisWay) // ==> stay
+      // Will "stay"(with log.error) if no TransformHander and FSM.NullFunction
+      // defined for NeverFeelThisWay.
+      goto(UnsureThenStay) // ==> stay?
+  })
+
+  /* using val before defining them results in NullPointerException.
+   * so define ansCurrentState before using them, or use def instead.
+   */
+  //val ansCurrentState: this.StateFunction = ???
+  def ansCurrentState: this.StateFunction = {
+    case Event(x@AskFeeling, ct) =>
+      // this is designed for answering current state
+      log.info(s"${sender.path} sends $x, $ct")
+      sender ! stateName
+      stay
   }
 
-  /* if no @stateTimeout, unhandled msgs would just go away.
-   * Otherwise, they are hold for @stateTimeout and then queued again.
+
+  // whenUnhandled is unstackable, latter one overrides the former
+  whenUnhandled (ansCurrentState orElse {
+    case Event(x@AskFeeling, ct) =>
+      // this is designed for answering current state
+      log.info(s"${sender.path} sends $x, $ct")
+      sender ! stateName
+      stay
+    case Event(x, ct) if (stateName == Neutral) =>
+      log.error(s"Neutral sees unhandled Event $x, impossible as per our code!")
+      throw new Exception()
+    case Event(x, ct) if (stateName == Happy) =>
+      log.warning(s"Happy sees unhandled Event $x")
+      stay
+  })
+
+  /* A StateTimeout message comes in every @stateTimeout.
+   * Restart the alarm everytime any Event comes in.
    */
-  when(Happy, stateTimeout = 2.seconds) {
+  when(Happy, stateTimeout = 3.seconds) {
+    case Event(x@StateTimeout, ct) =>
+      log.info(s"${sender.path} sends $x, $ct")
+      goto(Neutral) using List.empty
     case Event(x@GoodNews(i), ct) =>
       log.info(s"${sender.path} sends $x, $ct")
       stay using i +: ct
   }
 
   onTransition {
-    //case Neutral -> Neutral => same states DON'T cause transition!
+    case x -> y if (x == y) =>
+      // should never be here! stay or goto(sameState) will not cause
+      // transition
+      log.error(s"same states($stateName) should NOT cause transition!")
+    case _ -> NeverFeelThisWay =>
+      log.info(s"$stateName -> NeverFeelThisWay caused by ${sender.path}" +
+        "will be stuck there!!")
     case Neutral -> Happy =>
       log.info(s"Neutral -> Happy caused by ${sender.path}")
     case Happy -> Neutral =>
       log.info(s"Happy -> Neutral caused by ${sender.path}")
   }
 
-  override def unhandled(message: Any): Unit = {
-    log.info("unhandled msgs cause restart")
-    super.unhandled(message)
-  }
 
 }
