@@ -19,8 +19,9 @@ libraryDependencies ++= {
     "io.spray"            %   "spray-testkit" % sprayV,
     "com.typesafe.akka"   %%  "akka-actor"    % akkaV,
     "com.typesafe.akka"   %%  "akka-testkit"  % akkaV,
-    "org.specs2"          %%  "specs2"        % "2.2.3" % "test",
-    "commons-codec"       % "commons-codec"   % "1.9"
+    "commons-codec"       % "commons-codec"   % "1.9",
+    "org.specs2"          %% "specs2"         % "2.3.7" % "test",
+    "org.scalatest"       % "scalatest_2.10"  % "2.0"   % "test"
   )
 }
 

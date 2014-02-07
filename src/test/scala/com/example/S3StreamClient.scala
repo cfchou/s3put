@@ -46,7 +46,11 @@ class S3StreamClient(val bucket: String, val key: String, val secret: String)
   val file = appConf getString "uploadTest.object"
   val objectId = appConf getString "uploadTest.objectId"
 
+  /*
   val s3put = context.system.actorOf(Props(S3StreamPut(bucket, key, secret)),
+    "s3StreamPut")
+    */
+  val s3put = context.system.actorOf(Props(S3StreamPutFSM(bucket, key, secret)),
     "s3StreamPut")
 
   val chunkSize = 1024 * 10

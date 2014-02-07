@@ -33,7 +33,6 @@ object S3StreamPut {
   case class S3ChunkedData(data: Array[Byte]) extends S3ChunkCommand
   case object S3ChunkedEnd extends S3ChunkCommand
   case object S3ChunkedAck extends S3CommandResult
-  case class S3CommandFailedId(id: String) extends S3CommandResult
 }
 
 class S3StreamPut(val bucket: String, val key: String, val secret: String)
@@ -140,7 +139,6 @@ class S3StreamPut(val bucket: String, val key: String, val secret: String)
   : Receive = {
     case x: S3ChunkedStart =>
       if (waitAck) {
-        // client sends multiple msgs with same id will get only one result
         log.warning(s"Unexpected $x")
       } else {
         log.info(s"S3ChunkedStart from ${sender.path}")
