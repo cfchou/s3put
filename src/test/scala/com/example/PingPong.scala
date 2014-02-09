@@ -15,7 +15,6 @@ import scala.concurrent.{ExecutionContext, Await, Future}
  */
 
 object PingPong extends App {
-
   val system = ActorSystem("PingPong")
 
   val pong = system.actorOf(Props(new Pong), "pong")
@@ -32,10 +31,19 @@ object PingPong extends App {
 }
 
 class Ping(pong: ActorRef) extends Actor with ActorLogging {
+
+  import com.example.Pong._
+
   implicit val ec = context.system.dispatcher
-  implicit val timeout = Timeout(1 seconds)
+
+  /* Ask's timeout. As long as result from Pong comes back before the timeout,
+   * the temp actor in ask pattern is valid.
+   */
+  val duration = Pong.scheduleDelay + (1 second)
+  implicit def timeout = Timeout(duration)
 
   log.info(s"ping start ${self.path}")
+
   (pong ? "000") onComplete({
     case Success(v) => log.info(s"000 $v")
     case Failure(e) => log.info(s"000 $e")
@@ -46,11 +54,21 @@ class Ping(pong: ActorRef) extends Actor with ActorLogging {
     case Failure(e) => log.info(s"111 $e")
   })
 
+
+  //
   (pong ? "222") transform({ x =>
     log.info(s"222 $x")
     x
   }, { e =>
     log.info(s"222 $e")
+    e
+  })
+
+  (pong ? GetBack("333")).transform({ x =>
+    log.info(s"--> GetBack $x")
+    x
+  }, { e =>
+    log.info(s"--> GetBack $e")
     e
   })
 
@@ -60,29 +78,66 @@ class Ping(pong: ActorRef) extends Actor with ActorLogging {
   }
 }
 
+object Pong {
+  implicit val scheduleDelay = 1 second
+  case class GetBack(msg: String)
+  case class GetBackTo(commander: ActorRef, msg: String)
+}
+
 class Pong extends Actor with ActorLogging {
+
+  import com.example.Pong._
+
+  case class ResponseGetBack(commander: ActorRef, msg: String)
+
   implicit val ec = context.system.dispatcher
-  implicit val timeout = Timeout(1 seconds)
+
+  implicit val timeout = Timeout(scheduleDelay)
 
   log.info(s"pong start ${self.path}")
   def receive: Receive = {
+
     case x@"000" =>
-      log.info(s"Pong: $x to ${sender.path}")
+      log.info(s"Pong: $x from ${sender.path}")
       sender ! x
     case x@"111" =>
-      log.info(s"Pong: $x to ${sender.path}")
+      log.info(s"Pong: $x from ${sender.path}")
+      /* Rule of thumb: "val commander = sender" and then use commander
+       * instead of sender in the closure of Future
+       */
+      val commander = sender
       Await.result(Future {
-        sender ! x
+        commander ! x
       }, 1.second)
+
     case x@"222" =>
-      log.info(s"Pong: $x to ${sender.path}")
+      log.info(s"Pong: $x from ${sender.path}")
+      val commander = sender
       Future {
         // if client "asks", then the sender is a temp actor provided by akka.
-        // therefore msg won't go to client.
-        // So the Future need to redeem by Await, thus the temp actor remains valid
-        // on this thread, like case "111".
-        sender ! x
+        commander ! x
       }
+
+    // -------
+    case x@GetBack(msg) =>
+      log.info(s"Pong: $x from ${sender.path}")
+      val commander = sender
+
+      context.system.scheduler.scheduleOnce(scheduleDelay)({
+        // Use sender as commander is not reliable, since it could be a temp
+        // actor in the case that client's using ask pattern
+        self ! ResponseGetBack(commander, msg)
+      })
+    case x@GetBackTo(commander, msg) =>
+      log.info(s"Pong: $x from ${sender.path}")
+      context.system.scheduler.scheduleOnce(scheduleDelay)({
+        self ! ResponseGetBack(commander, msg)
+      })
+    case x@ResponseGetBack(commander, msg) =>
+      log.info(s"Pong: $x from ${sender.path}")
+      commander ! GetBack(msg)
+    // -------
+
     case x => log.info(s"Pong: $x")
   }
 }

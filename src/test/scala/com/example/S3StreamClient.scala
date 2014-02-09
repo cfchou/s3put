@@ -51,7 +51,7 @@ class S3StreamClient(val bucket: String, val key: String, val secret: String)
     "s3StreamPut")
     */
   val s3put = context.system.actorOf(Props(S3StreamPutFSM(bucket, key, secret)),
-    "s3StreamPut")
+    "s3StreamPutFSM")
 
   val chunkSize = 1024 * 10
   val buf = {
