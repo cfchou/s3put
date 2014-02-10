@@ -43,7 +43,7 @@ class S3StreamPut(val bucket: String, val key: String, val secret: String)
   implicit val system = context.system        // for IO(Http)
   implicit val ec = context.system.dispatcher // for Future
 
-  implicit val timeout = Timeout(5 seconds) // for ask pattern
+  //implicit val timeout = Timeout(5 seconds) // for ask pattern
 
   val receive = {
     val appConf = ConfigFactory.load
@@ -65,7 +65,7 @@ class S3StreamPut(val bucket: String, val key: String, val secret: String)
     PartialFunction[Any, Unit]({
       case x =>
         log.info(s"toFailEverything: $x")
-        sender ! CommandFailed
+        sender ! S3CommandFailed
     })
 
   }

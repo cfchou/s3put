@@ -6,7 +6,7 @@ import akka.actor._
 import com.typesafe.config.ConfigFactory
 import akka.io.IO
 import spray.can.Http
-import spray.can.Http.{Connected, CommandFailed}
+import spray.can.Http.{ConnectionClosed, Connected, CommandFailed}
 import spray.http._
 import spray.http.HttpHeaders.{`Content-Length`, `Content-Type`, RawHeader, Host}
 import spray.http.HttpRequest
@@ -67,7 +67,7 @@ class S3StreamPutFSM(val bucket: String, val key: String, val secret: String)
   }
 
   /* Only explicitly handle Tcp.CommandFailed in this case.
-   * In other states, an unhandled CommandFailed causes restart.
+   * In other states, an unhandled CommandFailed causes a restart.
    */
   when(S3Connecting) {
     case Event(_: CommandFailed, Some(FSMData(_, Some(commander)))) =>
@@ -75,6 +75,7 @@ class S3StreamPutFSM(val bucket: String, val key: String, val secret: String)
       goto(S3Waiting) using None
     case Event(_: Connected, Some(FSMData(_, Some(commander)))) =>
       commander ! S3Connected
+      context.watch(sender)
       goto(S3WaitingStart) using Some(FSMData(connection = Some(sender)))
     case Event(_: S3ChunkedStart | S3ChunkedData(_) | S3ChunkedEnd, _) =>
       sender ! S3CommandFailed
@@ -151,10 +152,20 @@ class S3StreamPutFSM(val bucket: String, val key: String, val secret: String)
   }
 
   whenUnhandled {
-    case Event(x@(S3ForceRestart | CommandFailed), ct) =>
-      // this is designed for answering current state
+    case Event(x@(S3ForceRestart | CommandFailed | _: ConnectionClosed), ct) =>
+      /* CommandFailed might happen during writing. ConnectionClosed might
+       * happen anytime. Had them happen and not been handled would throw and
+       * therefore a restart.
+       */
       log.info(s"[$stateName]: ${sender.path} sends $x, $ct")
       throw new Exception()
+    case Event(x@Terminated(connection), ct) =>
+      log.info(s"[$stateName]: ${connection.path} terminated, $ct")
+      if (!ct.isEmpty && !ct.get.commander.isEmpty) {
+        // if termination happens during any ack waiting states
+        ct.get.commander.get ! S3CommandFailed
+      }
+      goto(S3Waiting) using None
     case Event(x, ct) =>
       log.info(s"[$stateName]: ${sender.path} sends $x, $ct")
       stay

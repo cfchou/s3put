@@ -75,4 +75,9 @@ object S3SerialClient extends App {
       println(s"Failure: $e")
   })
 
+  import ExecutionContext.Implicits.global
+  system.scheduler.scheduleOnce(10.seconds)({
+    println("Shutdown actors")
+    system.shutdown()
+  })
 }
