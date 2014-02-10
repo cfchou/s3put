@@ -32,7 +32,6 @@ object S3Put {
 
   trait S3CommandResult
   case object S3Connected extends S3CommandResult
-  case object S3FileUploadAck extends S3CommandResult
   case object S3CommandFailed extends S3CommandResult
 }
 

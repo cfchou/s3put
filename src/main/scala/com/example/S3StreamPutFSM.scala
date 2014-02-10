@@ -90,9 +90,7 @@ class S3StreamPutFSM(val bucket: String, val key: String, val secret: String)
         goto(S3Connecting) using Some(FSMData(commander = Some(sender)))
     case Event(x: S3ChunkedStart, Some(fsmdata)) =>
       sendS3ChunkedStart(x, fsmdata.connection.get)
-      /* update commander, all subsequent chunk msgs only reply to this
-       * commander
-       */
+      // update commander, all ack is forwarded to this commander
       goto (S3WaitingStartAck) using
         Some(fsmdata.copy(commander = Some(sender)))
     case Event(_: S3ChunkedData | S3ChunkedEnd, _) =>
@@ -105,6 +103,7 @@ class S3StreamPutFSM(val bucket: String, val key: String, val secret: String)
       sender ! S3CommandFailed
       stay
     case Event(S3ChunkedAck, Some(fsmdata)) =>
+      log.info(s"S3ChunkedAck: $fsmdata")
       fsmdata.commander.get ! S3ChunkedAck
       goto(S3WaitingChunk)
   }
@@ -115,13 +114,15 @@ class S3StreamPutFSM(val bucket: String, val key: String, val secret: String)
       stay
     case Event(S3ChunkedData(data), Some(fsmdata)) =>
       fsmdata.connection.get ! MessageChunk(data).withAck(S3ChunkedAck)
-      goto(S3WaitingChunkAck)
+      goto(S3WaitingChunkAck) using
+        Some(fsmdata.copy(commander = Some(sender)))
     case Event(S3ChunkedEnd, Some(fsmdata)) =>
       /* It seems that spray directly acks ChunkedMessageEnd with Http response
        * instead of withAck
        */
       fsmdata.connection.get ! ChunkedMessageEnd.withAck(S3ChunkedAck)
-      goto(S3WaitingRes)
+      goto(S3WaitingRes) using
+        Some(fsmdata.copy(commander = Some(sender)))
   }
 
   when(S3WaitingChunkAck) {
@@ -135,6 +136,7 @@ class S3StreamPutFSM(val bucket: String, val key: String, val secret: String)
       stash()
       stay
     case Event(S3ChunkedAck, Some(fsmdata)) =>
+      log.info(s"S3ChunkedAck from ${sender.path} to ${fsmdata.commander.get.path}")
       fsmdata.commander.get ! S3ChunkedAck
       goto(S3WaitingChunk)
   }
