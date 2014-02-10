@@ -17,7 +17,7 @@ import scala.util.{Success, Failure}
  * User: cfchou
  * Date: 09/02/2014
  */
-object S3BlockingClient extends App {
+object S3SerialClient extends App {
   val appConf = ConfigFactory.load
   val bucket = appConf getString "s3.bucket"
   val key = appConf getString "aws.key"
@@ -34,7 +34,7 @@ object S3BlockingClient extends App {
     buf
   }
 
-  val system = ActorSystem("S3BlockingClient")
+  val system = ActorSystem("S3SerialClient")
   implicit val timeout = Timeout(10 seconds)
   import ExecutionContext.Implicits.global
 
