@@ -1,4 +1,4 @@
-package cf.s3
+package cf.s3.obsolete
 
 import akka.actor.Actor
 import spray.routing._

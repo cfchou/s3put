@@ -1,4 +1,4 @@
-package com
+package cf
 
 
 /**
@@ -6,7 +6,7 @@ package com
  * User: cfchou
  * Date: 01/02/2014
  */
-package object example {
+package object s3 {
 
 
 }

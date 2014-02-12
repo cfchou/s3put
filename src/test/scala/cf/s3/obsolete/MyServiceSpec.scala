@@ -1,4 +1,4 @@
-package cf.s3
+package cf.s3.obsolete
 
 import org.specs2.mutable.Specification
 import spray.testkit.Specs2RouteTest
