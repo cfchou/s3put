@@ -1,16 +1,16 @@
-package cf.s3
+package cf.s3.obsolete
 
 import com.typesafe.config._
 import akka.actor.{Props, ActorSystem}
-import scala.io.Source
 import akka.pattern.ask
-import cf.s3.S3Put._
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import scala.util.{Try, Failure, Success}
 import scala.concurrent.{ExecutionContext, Future, Await}
 
+import cf.s3.S3P._
+import cf.s3.obsolete.S3Put._
 /**
  * Created with IntelliJ IDEA.
  * User: cfchou

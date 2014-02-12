@@ -1,9 +1,8 @@
-package cf.s3
+package cf.s3.obsolete
 
 import akka.actor.{ActorRef, ActorLogging, Actor}
 import akka.io.IO
 import spray.can.Http
-import akka.pattern.{ask, pipe}
 import scala.concurrent.{Await, ExecutionContext, Future}
 import spray.http._
 import spray.httpx.RequestBuilding
@@ -12,6 +11,8 @@ import scala.io.{Codec, Source}
 import spray.httpx.marshalling.Marshaller
 import spray.httpx.marshalling.BasicMarshallers.byteArrayMarshaller
 import spray.http.HttpRequest
+import cf.s3.S3P
+import cf.s3.S3P._
 
 /**
  * Created with IntelliJ IDEA.
@@ -22,23 +23,16 @@ object S3Put {
   def apply(bucket: String, key: String, secret: String) =
     new S3Put(bucket, key,  secret)
 
-  trait S3Command
-  case object S3Connect extends S3Command
   // @dest is the path of the object on S3, without the starting '/'. E.g.
-  // "/bucketname/dir/to/object", @dest = "dir/to/object"
+  // for "/bucketname/dir/to/object", @dest = "dir/to/object"
   case class S3FileUpload(file: String, dest: String,
                           contentType: Option[String]) extends S3Command
-
-
-  trait S3CommandResult
-  case object S3Connected extends S3CommandResult
-  case object S3CommandFailed extends S3CommandResult
 }
 
 class S3Put(val bucket: String, val key: String, val secret: String)
   extends S3P with Actor with ActorLogging {
 
-  import cf.s3.S3Put._
+  import cf.s3.obsolete.S3Put._
 
   implicit val system = context.system        // for IO(Http)
   implicit val ec = context.system.dispatcher // for Future
@@ -90,7 +84,6 @@ class S3Put(val bucket: String, val key: String, val secret: String)
   def connecting(commander: ActorRef): Receive = {
     case S3Connect =>
       log.info("Connecting: Connect again")
-      //IO(Http) ! Http.Connect(bucketHost, sslEncryption = true)
       IO(Http) ! Http.Connect(bucketHost)
       val commander = sender
       context.become(connecting(commander))

@@ -1,4 +1,4 @@
-package cf.s3
+package cf.s3.obsolete
 
 import akka.testkit.{TestKit, TestActorRef, ImplicitSender}
 import akka.actor.{ActorRef, ActorSystem}

@@ -8,8 +8,7 @@ import scala.concurrent.{ExecutionContext, Future}
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import cf.s3.S3Put.{S3CommandResult, S3Connected, S3Connect}
-import cf.s3.S3StreamPut.{S3ChunkedEnd, S3ChunkedData, S3ChunkedStart}
+import cf.s3.S3P._
 import scala.util.{Success, Failure}
 
 /**

@@ -1,7 +1,6 @@
 package cf.s3
 
-import cf.s3.S3Put._
-import cf.s3.S3StreamPut._
+import cf.s3.S3P._
 import akka.actor._
 import com.typesafe.config.ConfigFactory
 import akka.io.IO

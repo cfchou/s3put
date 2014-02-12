@@ -1,4 +1,4 @@
-package cf.s3
+package cf.s3.obsolete
 
 import akka.actor._
 import spray.http._
@@ -13,7 +13,8 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import spray.can.Http.{Connected, CommandFailed}
-import cf.s3.S3Put._
+import cf.s3.S3P
+import cf.s3.S3P._
 import spray.http.{HttpRequest, ChunkedRequestStart, HttpResponse}
 import scala.Some
 
@@ -25,20 +26,10 @@ import scala.Some
 object S3StreamPut {
   def apply(bucket: String, key: String, secret: String) =
     new S3StreamPut(bucket, key,  secret)
-
-  trait S3ChunkCommand extends S3Command
-  case class S3ChunkedStart(dest: String,
-                            contentType: Option[String],
-                            contentLength: Long) extends S3ChunkCommand
-  case class S3ChunkedData(data: Array[Byte]) extends S3ChunkCommand
-  case object S3ChunkedEnd extends S3ChunkCommand
-  case object S3ChunkedAck extends S3CommandResult
 }
 
 class S3StreamPut(val bucket: String, val key: String, val secret: String)
   extends S3P with Actor with Stash with ActorLogging {
-
-  import S3StreamPut._
 
   implicit val system = context.system        // for IO(Http)
   implicit val ec = context.system.dispatcher // for Future

@@ -1,20 +1,14 @@
 package cf.s3
 
-import scala.util.{Failure, Success, Try}
 import com.typesafe.config.ConfigFactory
 import akka.actor._
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import cf.s3.S3Put._
-import akka.pattern.{ask, pipe}
+import cf.s3.S3P._
 import scala.concurrent.ExecutionContext
-import cf.s3.S3StreamPut._
 import scala.io.{Codec, Source}
 import spray.http.HttpResponse
-import spray.http.HttpResponse
-import cf.s3.S3StreamPut.S3ChunkedData
-import cf.s3.S3StreamPut.S3ChunkedStart
 
 /**
  * Created with IntelliJ IDEA.
@@ -46,12 +40,14 @@ class S3StreamClient(val bucket: String, val key: String, val secret: String)
   val file = appConf getString "uploadTest.object"
   val objectId = appConf getString "uploadTest.objectId"
 
-  /*
+  // obsolete.S3StreamPut can be used too
+  import cf.s3.obsolete.S3StreamPut
   val s3put = context.system.actorOf(Props(S3StreamPut(bucket, key, secret)),
     "s3StreamPut")
-    */
+  /*
   val s3put = context.system.actorOf(Props(S3StreamPutFSM(bucket, key, secret)),
     "s3StreamPutFSM")
+   */
 
   val chunkSize = 1024 * 10
   val buf = {

@@ -1,4 +1,4 @@
-package cf.s3
+package cf.s3.obsolete
 
 import akka.actor._
 import akka.pattern.ask
@@ -32,7 +32,7 @@ object PingPong extends App {
 
 class Ping(pong: ActorRef) extends Actor with ActorLogging {
 
-  import cf.s3.Pong._
+  import Pong._
 
   implicit val ec = context.system.dispatcher
 
@@ -86,7 +86,7 @@ object Pong {
 
 class Pong extends Actor with ActorLogging {
 
-  import cf.s3.Pong._
+  import Pong._
 
   case class ResponseGetBack(commander: ActorRef, msg: String)
 

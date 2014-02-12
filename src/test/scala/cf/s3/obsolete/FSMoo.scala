@@ -1,4 +1,4 @@
-package cf.s3
+package cf.s3.obsolete
 
 import akka.actor._
 import akka.util.Timeout

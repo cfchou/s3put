@@ -13,6 +13,23 @@ import spray.http.{ContentTypes, MediaType, MediaTypes, ContentType}
  * Date: 01/02/2014
  */
 
+object S3P {
+  trait S3Command
+  case object S3Connect extends S3Command
+
+  trait S3ChunkCommand extends S3Command
+  case class S3ChunkedStart(dest: String,
+                            contentType: Option[String],
+                            contentLength: Long) extends S3ChunkCommand
+  case class S3ChunkedData(data: Array[Byte]) extends S3ChunkCommand
+  case object S3ChunkedEnd extends S3ChunkCommand
+  case object S3ChunkedAck extends S3CommandResult
+
+  trait S3CommandResult
+  case object S3Connected extends S3CommandResult
+  case object S3CommandFailed extends S3CommandResult
+}
+
 // TODO: decouple LoggingAdapter
 trait S3P { this: { def bucket: String
                     def key: String
