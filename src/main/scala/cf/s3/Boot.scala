@@ -1,4 +1,4 @@
-package com.example
+package cf.s3
 
 import akka.actor.{ActorSystem, Props}
 import akka.io.IO

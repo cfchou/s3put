@@ -1,4 +1,4 @@
-package com.example
+package cf.s3
 
 import akka.actor.{ActorRef, ActorLogging, Actor}
 import akka.io.IO
@@ -38,7 +38,7 @@ object S3Put {
 class S3Put(val bucket: String, val key: String, val secret: String)
   extends S3P with Actor with ActorLogging {
 
-  import com.example.S3Put._
+  import cf.s3.S3Put._
 
   implicit val system = context.system        // for IO(Http)
   implicit val ec = context.system.dispatcher // for Future

@@ -1,4 +1,4 @@
-package com.example
+package cf.s3
 
 import akka.actor._
 import spray.http._
@@ -13,7 +13,7 @@ import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.language.postfixOps
 import spray.can.Http.{Connected, CommandFailed}
-import com.example.S3Put._
+import cf.s3.S3Put._
 import spray.http.{HttpRequest, ChunkedRequestStart, HttpResponse}
 import scala.Some
 

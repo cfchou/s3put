@@ -1,4 +1,4 @@
-package com.example
+package cf.s3
 
 import akka.event.LoggingAdapter
 import scala.concurrent.{ExecutionContext, Future}

@@ -1,4 +1,4 @@
-organization  := "com.example"
+organization  := "cf.s3"
 
 version       := "0.1"
 

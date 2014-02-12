@@ -1,4 +1,4 @@
-package com.example
+package cf.s3
 
 import scala.util.{Failure, Success, Try}
 import com.typesafe.config.ConfigFactory
@@ -6,15 +6,15 @@ import akka.actor._
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import com.example.S3Put._
+import cf.s3.S3Put._
 import akka.pattern.{ask, pipe}
 import scala.concurrent.ExecutionContext
-import com.example.S3StreamPut._
+import cf.s3.S3StreamPut._
 import scala.io.{Codec, Source}
 import spray.http.HttpResponse
 import spray.http.HttpResponse
-import com.example.S3StreamPut.S3ChunkedData
-import com.example.S3StreamPut.S3ChunkedStart
+import cf.s3.S3StreamPut.S3ChunkedData
+import cf.s3.S3StreamPut.S3ChunkedStart
 
 /**
  * Created with IntelliJ IDEA.

@@ -1,10 +1,10 @@
-package com.example
+package cf.s3
 
 import com.typesafe.config._
 import akka.actor.{Props, ActorSystem}
 import scala.io.Source
 import akka.pattern.ask
-import com.example.S3Put._
+import cf.s3.S3Put._
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.language.postfixOps

@@ -1,4 +1,4 @@
-package com.example
+package cf.s3
 
 import akka.testkit.{TestKit, TestActorRef, ImplicitSender}
 import akka.actor.{ActorRef, ActorSystem}

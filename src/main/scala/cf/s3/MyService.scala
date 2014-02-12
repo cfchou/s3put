@@ -1,4 +1,4 @@
-package com.example
+package cf.s3
 
 import akka.actor.Actor
 import spray.routing._

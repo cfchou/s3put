@@ -1,7 +1,7 @@
-package com.example
+package cf.s3
 
-import com.example.S3Put._
-import com.example.S3StreamPut._
+import cf.s3.S3Put._
+import cf.s3.S3StreamPut._
 import akka.actor._
 import com.typesafe.config.ConfigFactory
 import akka.io.IO
@@ -13,7 +13,7 @@ import spray.http.HttpRequest
 import spray.http.ChunkedRequestStart
 import spray.http.HttpHeaders.RawHeader
 import scala.Some
-import com.example.S3StreamPutFSM.FSMData
+import cf.s3.S3StreamPutFSM.FSMData
 
 /**
  * Created with IntelliJ IDEA.

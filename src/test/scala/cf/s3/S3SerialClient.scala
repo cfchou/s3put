@@ -1,4 +1,4 @@
-package com.example
+package cf.s3
 
 import com.typesafe.config.ConfigFactory
 import akka.actor.{Props, ActorSystem}
@@ -8,8 +8,8 @@ import scala.concurrent.{ExecutionContext, Future}
 import akka.util.Timeout
 import scala.concurrent.duration._
 import scala.language.postfixOps
-import com.example.S3Put.{S3CommandResult, S3Connected, S3Connect}
-import com.example.S3StreamPut.{S3ChunkedEnd, S3ChunkedData, S3ChunkedStart}
+import cf.s3.S3Put.{S3CommandResult, S3Connected, S3Connect}
+import cf.s3.S3StreamPut.{S3ChunkedEnd, S3ChunkedData, S3ChunkedStart}
 import scala.util.{Success, Failure}
 
 /**

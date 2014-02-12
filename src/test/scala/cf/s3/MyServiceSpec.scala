@@ -1,4 +1,4 @@
-package com.example
+package cf.s3
 
 import org.specs2.mutable.Specification
 import spray.testkit.Specs2RouteTest
